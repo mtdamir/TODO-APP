@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 )
 
 type User struct {
@@ -15,12 +16,19 @@ type User struct {
 }
 
 type Task struct {
-	ID       int
-	Title    string
-	DueDate  string
-	Category string
-	IsDone   bool
-	UserID   int
+	ID         int
+	Title      string
+	DueDate    string
+	CategoryID int
+	IsDone     bool
+	UserID     int
+}
+
+type Category struct {
+	ID     int
+	Title  string
+	Color  string
+	UserID int
 }
 
 // Storage Layer
@@ -28,11 +36,8 @@ type Task struct {
 var userStorage []User
 var authenthicatedUser *User
 
+var categoryStorage []Category
 var taskStorage []Task
-
-func (u User) print() {
-	fmt.Println("User:", u.ID, u.Email, u.Name)
-}
 
 func main() {
 	fmt.Println("Hello TODO app")
@@ -40,8 +45,7 @@ func main() {
 	command := flag.String("command", "no command", "command to run")
 	flag.Parse()
 
-	// if there is user record with corresponding data alow  the user to continue
-
+	// This is a loop for the runCommand function that iterates over all its values.
 	for {
 		runCommand(*command)
 
@@ -51,12 +55,10 @@ func main() {
 		*command = scanner.Text()
 	}
 
-	// input: name
-
 }
 
 func runCommand(command string) {
-
+	// zero value equal nil so we compare with nil
 	if command != "register-user" && command != "exit" && authenthicatedUser == nil {
 		login()
 		if authenthicatedUser == nil {
@@ -83,7 +85,7 @@ func runCommand(command string) {
 }
 
 func createTask() {
-
+	// We use this line below to get input from the user
 	scanner := bufio.NewScanner(os.Stdin)
 	var title, category, duedate string
 
@@ -91,21 +93,44 @@ func createTask() {
 	scanner.Scan()
 	title = scanner.Text()
 
-	fmt.Println("please enter the task category")
+	fmt.Println("please enter the task category id")
 	scanner.Scan()
 	category = scanner.Text()
+
+	categoryID, err := strconv.Atoi(category)
+	if err != nil {
+		fmt.Printf("category id is not valid integer. %v\n", err)
+
+		return
+	}
+
+	isFound := false
+	for _, c := range categoryStorage {
+		if c.ID == categoryID && c.UserID == authenthicatedUser.ID {
+			isFound = true
+
+			break
+		}
+	}
+
+	if !isFound {
+		fmt.Printf("category-id is not found\n")
+
+		return
+	}
+
 
 	fmt.Println("please enter the task date")
 	scanner.Scan()
 	duedate = scanner.Text()
 
 	task := Task{
-		ID:       len(taskStorage) + 1,
-		Title:    title,
-		DueDate:  duedate,
-		Category: category,
-		IsDone:   false,
-		UserID:   authenthicatedUser.ID,
+		ID:         len(taskStorage) + 1,
+		Title:      title,
+		DueDate:    duedate,
+		CategoryID: categoryID,
+		IsDone:     false,
+		UserID:     authenthicatedUser.ID,
 	}
 
 	taskStorage = append(taskStorage, task)
@@ -124,6 +149,15 @@ func createCategory() {
 	fmt.Println("please enter the category color")
 	scanner.Scan()
 	color = scanner.Text()
+
+	c := Category{
+		ID:     len(categoryStorage) + 1,
+		Title:  title,
+		Color:  color,
+		UserID: authenthicatedUser.ID,
+	}
+
+	categoryStorage = append(categoryStorage, c)
 
 	fmt.Println("catagory:", title, color)
 }
