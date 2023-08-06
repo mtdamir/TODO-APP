@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type User struct {
@@ -39,7 +40,13 @@ var authenthicatedUser *User
 var categoryStorage []Category
 var taskStorage []Task
 
+const userStoragePath = "user.txt"
+
 func main() {
+
+	// load user storage from file
+	loadUserStorageFromFile()
+
 	fmt.Println("Hello TODO app")
 
 	command := flag.String("command", "no command", "command to run")
@@ -119,7 +126,6 @@ func createTask() {
 		return
 	}
 
-
 	fmt.Println("please enter the task date")
 	scanner.Scan()
 	duedate = scanner.Text()
@@ -190,6 +196,32 @@ func registerUser() {
 	}
 
 	userStorage = append(userStorage, user)
+
+	var file *os.File
+
+	file, err := os.OpenFile(userStoragePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Println("can't create or open file", err)
+
+		return
+	}
+
+	data := fmt.Sprintf("id: %d, name: %s, email: %s, password: %s\n", user.ID, user.Name,
+		user.Email, user.Password)
+
+	var b = []byte(data)
+
+	numberOfWrittenBytes, wErr := file.Write(b)
+	if wErr != nil {
+		fmt.Printf("can't write to the file %v\n", wErr)
+
+		return
+	}
+
+	fmt.Println("numberOfWrittenBytes", numberOfWrittenBytes)
+
+	file.Close()
+
 }
 
 func login() {
@@ -228,4 +260,63 @@ func listTask() {
 			fmt.Println(task)
 		}
 	}
+}
+
+func loadUserStorageFromFile() {
+	file, err := os.Open(userStoragePath)
+	if err != nil {
+		fmt.Println("can't open the file", err)
+	}
+
+	var data = make([]byte, 1024)
+	_, oErr := file.Read(data)
+	if oErr != nil {
+		fmt.Println("can't read from the file", oErr)
+	}
+
+	var dataStr = string(data)
+
+	userSlice := strings.Split(dataStr, "\n")
+	fmt.Println("userSlice", len(userSlice))
+	for _, u := range userSlice {
+		if u == "" {
+			continue
+		}
+
+		var user = User{}
+
+		userFields := strings.Split(u, ",")
+		for _, field := range userFields {
+			values := strings.Split(field, ": ")
+			if len(values) != 2 {
+				fmt.Println("field is not valid, skipping...", len(values))
+
+				continue
+			}
+			fieldName := strings.ReplaceAll(values[0], " ", "")
+			fieldValue := values[1]
+
+			switch fieldName {
+			case "id":
+				id, err := strconv.Atoi(fieldValue)
+				if err != nil {
+					fmt.Println("strconv error", err)
+
+					return
+				}
+				user.ID = id
+			case "name":
+				user.Name = fieldValue
+			case "email":
+				user.Email = fieldValue
+			case "password":
+				user.Password = fieldValue
+			}
+
+		}
+
+		fmt.Printf("user: %+v\n", user)
+	}
+
+	//fmt.Println(data)
 }
